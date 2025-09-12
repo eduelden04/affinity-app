@@ -12,8 +12,8 @@ var suffix = toLower(rawSuffix)
 var nameSuffix = enableRandomSuffix ? '-${suffix}' : ''
 @description('배포 위치')
 param location string = resourceGroup().location
-@description('컨테이너 이미지 (예: ghcr.io/owner/affinity-app:latest)')
-param containerImage string
+@description('컨테이너 이미지 (예: ghcr.io/asomi7007/affinity-app:latest) - 실제 배포 전 latest 이미지를 먼저 푸시해야 함')
+param containerImage string = 'ghcr.io/asomi7007/affinity-app:latest'
 @description('컨테이너 포트 (프론트엔드 리버스프록시 포함 시 8000 또는 80)')
 param containerPort int = 8000
 @description('SKU (Basic B1, 무료 플랜은 Linux 컨테이너에 제한)')
