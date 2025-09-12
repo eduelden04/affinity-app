@@ -159,6 +159,8 @@ App Service에 배포된 컨테이너는 포트 환경을 자동 주입(WEBSITES
 ### 6) 커스텀 도메인 / HTTPS
 배포 후 `webAppUrl` 출력 값을 확인 → App Service 설정에서 커스텀 도메인(CNAME) 추가 및 무료 SSL 바인딩.
 
+> 참고: 이제 Bicep 템플릿의 `containerImage` 파라미터는 기본값(`ghcr.io/asomi7007/affinity-app:latest`)을 포함합니다. 다른 레지스트리를 사용하거나 버전 태그를 고정하려면 배포 화면에서 값만 교체하면 됩니다.
+
 ### 7) 문제 해결
 | 증상 | 점검 항목 |
 |------|-----------|
