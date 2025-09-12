@@ -76,7 +76,7 @@ npm run dev
 
 아래 버튼을 클릭하면 현재 리포지토리의 `infra/azure/main.bicep` 템플릿을 사용하여 Azure App Service (Linux Container)로 배포합니다. GHCR 등 외부 레지스트리에 미리 이미지를 Push 한 후 해당 이미지 경로를 입력해야 합니다.
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2F<YOUR_GITHUB_USER_OR_ORG>%2F<YOUR_REPO_NAME>%2Fmain%2Finfra%2Fazure%2Fmain.json)
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fasomi7007%2Faffinity-app%2Fmain%2Finfra%2Fazure%2Fmain.json)
 
 ### 리소스 이름 충돌 방지 (랜덤 suffix)
 동일한 `projectName` 으로 여러 사람이 같은 구독/리소스그룹에 배포할 경우 이름 충돌을 막기 위해 기본적으로 `-xxxx` 형태(4글자 소문자 hex)의 suffix 가 자동 부여됩니다. (예: `affinity-app-ab12`)
