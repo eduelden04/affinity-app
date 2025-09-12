@@ -59,7 +59,12 @@ resource app 'Microsoft.Web/sites@2023-12-01' = {
       }
       containerRegistryUseManagedIdentity: true
       healthCheckPath: '/docs'
-      port: string(containerPort)
+      appSettings: [
+        {
+          name: 'WEBSITES_PORT'
+          value: string(containerPort)
+        }
+      ]
     }
     httpsOnly: true
   }

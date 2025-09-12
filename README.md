@@ -78,6 +78,8 @@ npm run dev
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fasomi7007%2Faffinity-app%2Fmain%2Finfra%2Fazure%2Fmain.json)
 
+> 중요: 위 버튼은 `infra/azure/main.json` (Bicep 컴파일 결과) 파일이 repo main 브랜치에 존재해야 정상 동작합니다. 없으면 먼저 아래 명령으로 생성 후 커밋하세요.
+
 ### 리소스 이름 충돌 방지 (랜덤 suffix)
 동일한 `projectName` 으로 여러 사람이 같은 구독/리소스그룹에 배포할 경우 이름 충돌을 막기 위해 기본적으로 `-xxxx` 형태(4글자 소문자 hex)의 suffix 가 자동 부여됩니다. (예: `affinity-app-ab12`)
 
