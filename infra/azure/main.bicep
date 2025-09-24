@@ -14,63 +14,100 @@ var nameSuffix = enableRandomSuffix ? '-${suffix}' : ''
 param location string = resourceGroup().location
 @description('컨테이너 이미지 (예: ghcr.io/asomi7007/affinity-app:latest) - 실제 배포 전 latest 이미지를 먼저 푸시해야 함')
 param containerImage string = 'ghcr.io/asomi7007/affinity-app:latest'
-@description('컨테이너 포트 (프론트엔드 리버스프록시 포함 시 8000 또는 80)')
-param containerPort int = 8000
-@description('SKU (Basic B1, 무료 플랜은 Linux 컨테이너에 제한)')
-param planSku string = 'B1'
-@description('App Service 계획 용량 (기본 1)')
-param planCapacity int = 1
+@description('컨테이너 타겟 포트 (FastAPI 기본값: 8000)')
+param targetPort int = 8000
+@description('외부 노출 여부 (external 또는 internal)')
+param ingress string = 'external'
+@description('CPU 제한 (코어 단위, 기본 0.5)')
+param cpu string = '0.5'
+@description('메모리 제한 (Gi 단위, 기본 1.0)')
+param memory string = '1.0Gi'
+@description('최소 레플리카 수')
+param minReplicas int = 0
+@description('최대 레플리카 수')
+param maxReplicas int = 5
 
-var planName = '${projectName}-plan${nameSuffix}'
-var webAppName = '${projectName}-app${nameSuffix}'
+var environmentName = '${projectName}-env${nameSuffix}'
+var containerAppName = '${projectName}-app${nameSuffix}'
+var logAnalyticsName = '${projectName}-logs${nameSuffix}'
 
-resource plan 'Microsoft.Web/serverfarms@2023-12-01' = {
-  name: planName
+resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
+  name: logAnalyticsName
   location: location
-  sku: {
-    name: planSku
-    capacity: planCapacity
-    tier: planSku == 'B1' ? 'Basic' : 'Standard'
-  }
-  kind: 'linux'
   properties: {
-    reserved: true
+    sku: {
+      name: 'PerGB2018'
+    }
+    retentionInDays: 30
   }
 }
 
-resource app 'Microsoft.Web/sites@2023-12-01' = {
-  name: webAppName
+resource environment 'Microsoft.App/managedEnvironments@2024-03-01' = {
+  name: environmentName
   location: location
-  kind: 'app,linux'
   properties: {
-    serverFarmId: plan.id
-    siteConfig: {
-      linuxFxVersion: 'DOCKER|${containerImage}'
-      appCommandLine: ''
-      alwaysOn: true
-      http20Enabled: true
-      use32BitWorkerProcess: false
-      applicationLogs: {
-        fileSystem: {
-          level: 'Information'
-          retentionInMb: 35
-          retentionInDays: 5
-        }
+    appLogsConfiguration: {
+      destination: 'log-analytics'
+      logAnalyticsConfiguration: {
+        customerId: logAnalytics.properties.customerId
+        sharedKey: logAnalytics.listKeys().primarySharedKey
       }
-      containerRegistryUseManagedIdentity: true
-      healthCheckPath: '/docs'
-      appSettings: [
+    }
+  }
+}
+
+resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
+  name: containerAppName
+  location: location
+  properties: {
+    managedEnvironmentId: environment.id
+    configuration: {
+      ingress: {
+        external: ingress == 'external'
+        targetPort: targetPort
+        traffic: [
+          {
+            weight: 100
+            latestRevision: true
+          }
+        ]
+      }
+    }
+    template: {
+      containers: [
         {
-          name: 'WEBSITES_PORT'
-          value: string(containerPort)
+          name: containerAppName
+          image: containerImage
+          resources: {
+            cpu: json(cpu)
+            memory: memory
+          }
+          env: [
+            {
+              name: 'PORT'
+              value: string(targetPort)
+            }
+          ]
         }
       ]
+      scale: {
+        minReplicas: minReplicas
+        maxReplicas: maxReplicas
+        rules: [
+          {
+            name: 'http-scale'
+            http: {
+              metadata: {
+                concurrentRequests: '30'
+              }
+            }
+          }
+        ]
+      }
     }
-    httpsOnly: true
-  }
-  identity: {
-    type: 'SystemAssigned'
   }
 }
 
-output webAppUrl string = 'https://${webAppName}.azurewebsites.net'
+output containerAppUrl string = 'https://${containerApp.properties.configuration.ingress.fqdn}'
+output environmentName string = environment.name
+output containerAppName string = containerApp.name

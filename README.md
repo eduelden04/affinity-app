@@ -72,13 +72,13 @@ npm run dev
 - 테스트, 프론트 빌드, 컨테이너 이미지(GHCR) 빌드 & 푸시
 - Azure 배포 스텁 (Secrets 필요)
 
-## Azure 원클릭 배포
+## Azure Container Apps로 배포하기
 
-아래 버튼을 클릭하면 현재 리포지토리의 `infra/azure/main.bicep` 템플릿을 사용하여 Azure App Service (Linux Container)로 배포합니다. GHCR 등 외부 레지스트리에 미리 이미지를 Push 한 후 해당 이미지 경로를 입력해야 합니다.
+이 프로젝트는 FastAPI(백엔드)와 React(Vite, 프론트엔드)가 통합된 컨테이너 이미지를 Azure Container Apps에 배포하는 구조입니다.
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fasomi7007%2Faffinity-app%2Fmain%2Finfra%2Fazure%2Fmain.json)
 
-> 중요: 위 버튼은 `infra/azure/main.json` (Bicep 컴파일 결과) 파일이 repo main 브랜치에 존재해야 정상 동작합니다. 없으면 먼저 아래 명령으로 생성 후 커밋하세요.
+> 중요: 위 버튼은 `infra/azure/main.json` (Bicep 컴파일 결과) 파일이 repo main 브랜치에 존재해야 정상 동작합니다. Container Apps 리소스를 생성합니다.
 
 ### 리소스 이름 충돌 방지 (랜덤 suffix)
 동일한 `projectName` 으로 여러 사람이 같은 구독/리소스그룹에 배포할 경우 이름 충돌을 막기 위해 기본적으로 `-xxxx` 형태(4글자 소문자 hex)의 suffix 가 자동 부여됩니다. (예: `affinity-app-ab12`)
@@ -87,87 +87,170 @@ npm run dev
 - suffix 는 `uniqueString(resourceGroup().id, projectName)` 기반 deterministic 값 → 같은 RG/같은 projectName 재배포 시 동일 이름 유지
 - 완전 재배포마다 다른 임의값(비결정) 원하면 추가 모듈/utcNow() seed 로직 필요 (현재 템플릿은 안정적 재배포 우선)
 
-### 1) Bicep → ARM 템플릿 변환 (CI 또는 수동)
-Azure 포털 Deploy 버튼은 ARM(JSON) URL을 요구하므로 Bicep을 JSON으로 사전 변환해야 합니다. 로컬에서 수동 변환 예:
+### 1) 컨테이너 이미지 빌드 및 푸시
+GitHub Actions 또는 로컬에서 이미지 빌드 및 푸시:
+```bash
+docker build -t ghcr.io/asomi7007/affinity-app:latest .
+echo $CR_PAT | docker login ghcr.io -u asomi7007 --password-stdin
+docker push ghcr.io/asomi7007/affinity-app:latest
+```
+- GHCR(Public/Private) 사용 시 권한 설정을 확인하세요.
+
+### 2) Bicep → ARM 템플릿 변환 (CI 또는 수동)
+Azure 포털 Deploy 버튼은 ARM(JSON) URL을 요구하므로 Bicep을 JSON으로 사전 변환해야 합니다:
 ```bash
 az bicep build --file infra/azure/main.bicep --outdir infra/azure
 ```
-생성된 `main.json` 을 main 브랜치에 커밋 후 위 URL의 `<YOUR_GITHUB_USER_OR_ORG>` / `<YOUR_REPO_NAME>` 를 실제 값으로 교체하십시오.
+생성된 `main.json` 을 main 브랜치에 커밋하세요.
 
-### 2) 컨테이너 이미지 준비
-GitHub Actions 또는 로컬에서 이미지 태그 예:
+### 3) 🚀 자동 배포 스크립트 (권장)
+
+코드스페이스나 로컬 환경에서 한 번의 명령으로 리소스 그룹 생성부터 배포까지 자동화:
+
 ```bash
-# 프론트엔드 빌드 후 (예: Nginx 이미지에 결과 포함) / 또는 백엔드 포함 단일 이미지
-docker build -t ghcr.io/<owner>/<repo>:latest .
-echo $CR_PAT | docker login ghcr.io -u <owner> --password-stdin
-docker push ghcr.io/<owner>/<repo>:latest
+# 실행 권한 부여
+chmod +x scripts/deploy.sh
+
+# 기본 설정으로 배포 (이미지: ghcr.io/asomi7007/affinity-app:latest, 위치: koreasouth)  
+./scripts/deploy.sh
+
+# 사용자 정의 설정으로 배포
+./scripts/deploy.sh "ghcr.io/asomi7007/affinity-app:v1.0" "koreacentral"
 ```
 
-### 3) 포털 배포 시 파라미터
+**PowerShell 사용 시:**
+```powershell
+# 기본 설정으로 배포
+.\scripts\deploy.ps1
+
+# 사용자 정의 설정으로 배포
+.\scripts\deploy.ps1 -ContainerImage "ghcr.io/asomi7007/affinity-app:v1.0" -Location "koreacentral"
+```
+
+**배포 스크립트 특징:**
+- 🎯 **자동 리소스 그룹 생성**: `affinityapp-YYYYMMDD-XXXX` 형식 (날짜 + 랜덤 4자리)
+- 🔍 **배포 미리보기**: What-If 분석으로 변경사항 미리 확인
+- 📊 **배포 정보 저장**: `deployment-info.txt`에 URL, 리소스 그룹 등 저장
+- 🎨 **컬러 출력**: 진행 상황을 시각적으로 확인
+- ⚡ **리소스 정리**: `./scripts/cleanup.sh <리소스그룹명>` 으로 간편 삭제
+
+### 4) Azure CLI로 수동 배포 (고급 사용자)
+```bash
+# 리소스 그룹 생성
+az group create --name affinity-app-rg --location koreasouth
+
+# 배포 미리보기
+az deployment group what-if \
+  --resource-group affinity-app-rg \
+  --template-file infra/azure/main.bicep \
+  --parameters containerImage=ghcr.io/asomi7007/affinity-app:latest
+
+# Container Apps 배포
+az deployment group create \
+  --resource-group affinity-app-rg \
+  --template-file infra/azure/main.bicep \
+  --parameters containerImage=ghcr.io/asomi7007/affinity-app:latest
+```
+
+### 4) 포털 배포 시 파라미터
 | 파라미터 | 설명 | 예시 |
 |----------|------|------|
 | projectName | 리소스 접두사 | affinity | 
 | location | 배포 지역 | koreacentral |
-| containerImage | 풀 이미지 경로 | ghcr.io/owner/affinity-app:latest |
-| containerPort | 컨테이너 노출 포트 | 8000 (FastAPI) |
-| planSku | App Service 플랜 SKU | B1 |
+| containerImage | 풀 이미지 경로 | ghcr.io/asomi7007/affinity-app:latest |
+| targetPort | 컨테이너 노출 포트 | 8000 (FastAPI) |
+| ingress | 외부 노출 여부 | external |
 
-### 4) GitHub Actions로 자동 변환/배포 (선택)
-`.github/workflows/` 에 아래 스니펫을 추가하면 main push 시 Bicep 빌드 + Azure Deploy (Az CLI) 자동화 가능.
+### 5) GitHub Actions로 자동 배포 (선택)
+
+`.github/workflows/` 에 아래 스니펫을 추가하면 main push 시 Container Apps 자동 배포 가능.
+
 ```yaml
-name: deploy-azure
+name: deploy-container-apps
 on:
   push:
     branches: [ main ]
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
     steps:
       - uses: actions/checkout@v4
-      - name: Azure Login (OIDC)
+      - name: Azure Login
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      - name: Build Bicep
+      - name: Deploy to Container Apps
         run: |
-          az bicep build --file infra/azure/main.bicep --outdir infra/azure
-      - name: Deploy
-        run: |
-          az deployment group create \
+          az containerapp update \
+            --name ${{ secrets.CONTAINER_APP_NAME }} \
             --resource-group ${{ secrets.AZURE_RG }} \
-            --template-file infra/azure/main.json \
-            --parameters projectName=affinity containerImage=${{ secrets.CONTAINER_IMAGE }}
+            --image ${{ secrets.CONTAINER_IMAGE }} \
+            --target-port 8000 \
+            --ingress external
 ```
 
 필요 Secrets
+
 | 이름 | 설명 |
 |------|------|
 | `AZURE_CLIENT_ID` | Federated Credential이 연결된 App Registration 클라이언트 ID |
 | `AZURE_TENANT_ID` | Azure AD Tenant ID |
 | `AZURE_SUBSCRIPTION_ID` | 구독 ID |
 | `AZURE_RG` | 리소스 그룹 이름 |
-| `CONTAINER_IMAGE` | 배포할 컨테이너 이미지 (예: ghcr.io/owner/affinity-app:latest) |
+| `CONTAINER_IMAGE` | 배포할 컨테이너 이미지 (예: ghcr.io/asomi7007/affinity-app:latest) |
+| `CONTAINER_APP_NAME` | Container App 리소스 이름 |
 
-### 5) 런타임 환경 변수 / 구성
-App Service에 배포된 컨테이너는 포트 환경을 자동 주입(WEBSITES_PORT) 하지 않는 경우 Bicep에서 지정한 `containerPort` 로 노출됩니다. FastAPI가 8000 포트 실행 중인지 확인하세요. 필요 시 Dockerfile `CMD` 확인.
+### 6) 환경 변수 및 포트 설정
 
-### 6) 커스텀 도메인 / HTTPS
-배포 후 `webAppUrl` 출력 값을 확인 → App Service 설정에서 커스텀 도메인(CNAME) 추가 및 무료 SSL 바인딩.
+- FastAPI는 기본적으로 8000 포트에서 실행되어야 하며, `targetPort`와 일치해야 합니다.
+- 환경 변수는 `--env-vars` 옵션 또는 Bicep 템플릿에서 지정합니다.
 
-> 참고: 이제 Bicep 템플릿의 `containerImage` 파라미터는 기본값(`ghcr.io/asomi7007/affinity-app:latest`)을 포함합니다. 다른 레지스트리를 사용하거나 버전 태그를 고정하려면 배포 화면에서 값만 교체하면 됩니다.
+### 7) 배포 후 확인 및 커스텀 도메인
 
-### 7) 문제 해결
+- 배포가 완료되면 Azure Portal 또는 CLI에서 Container Apps의 URL을 확인할 수 있습니다.
+- 필요 시 [커스텀 도메인 및 SSL](https://learn.microsoft.com/ko-kr/azure/container-apps/custom-domains) 설정을 진행하세요.
+
+> 참고: Bicep 템플릿의 `containerImage` 파라미터는 기본값(`ghcr.io/asomi7007/affinity-app:latest`)을 포함합니다. 다른 레지스트리를 사용하거나 버전 태그를 고정하려면 배포 화면에서 값만 교체하면 됩니다.
+
+### 8) 문제 해결
+
 | 증상 | 점검 항목 |
 |------|-----------|
-| 앱 502/기동 실패 | Docker 로그: `az webapp log tail -n <app> -g <rg>` |
-| 포트 바인딩 오류 | 컨테이너 내부 프로세스 포트와 `containerPort` 일치 여부 |
-| 이미지 Pull 실패 | Managed Identity ACR 권한/ GHCR public 여부 확인 |
-| Health Check 실패 | Bicep healthCheckPath `/docs` 정상 응답 여부 |
+| 앱 502/기동 실패 | 컨테이너 로그: `az containerapp logs show --name <app> --resource-group <rg>` |
+| 포트 바인딩 오류 | FastAPI 실행 포트와 `targetPort` 일치 여부 |
+| 이미지 Pull 실패 | Managed Identity / GHCR public 여부 확인 |
+| Health Check 실패 | `/docs` 정상 응답 여부 |
+
+### 9) 리소스 정리
+
+배포된 리소스를 정리하려면:
+
+```bash
+# 특정 리소스 그룹 삭제 (스크립트 사용 - 권장)
+./scripts/cleanup.sh affinityapp-20240924-a1b2
+
+# 배포된 모든 affinity 리소스 그룹 확인
+az group list --query "[?starts_with(name, 'affinityapp-')].{Name:name, Location:location}" --output table
+
+# 수동 삭제
+az group delete --name <resource-group-name> --yes --no-wait
+```
+
+**PowerShell 사용 시:**
+```powershell
+# 리소스 그룹 목록 확인 후 삭제
+az group list --query "[?starts_with(name, 'affinityapp-')].name" --output table
+az group delete --name "affinityapp-20240924-a1b2" --yes --no-wait
+```
+
+### 참고 문서
+
+- [Azure Container Apps 시작하기](https://learn.microsoft.com/ko-kr/azure/container-apps/get-started)
+- [Container Apps Bicep 예제](https://learn.microsoft.com/ko-kr/azure/container-apps/bicep-deploy)
+- [Container Apps 환경 변수 관리](https://learn.microsoft.com/ko-kr/azure/container-apps/environment-variables)
+- [Container Apps 커스텀 도메인](https://learn.microsoft.com/ko-kr/azure/container-apps/custom-domains)
 
 ---
 
