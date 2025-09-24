@@ -2,6 +2,21 @@
 
 FastAPI + React (Vite) 기반 실시간 어피니티 다이어그램 협업 도구 초기 스켈레톤.
 
+## 🚀 GitHub Codespaces에서 시작하기
+
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/asomi7007/affinity-app)
+
+**Codespaces에서 자동으로 설정됩니다:**
+- Python 3.12 + Node.js 18
+- 필요한 VS Code 확장 프로그램
+- 백엔드/프론트엔드 의존성 자동 설치
+- 포트 포워딩 (5173, 8000)
+
+**Codespaces 실행 후:**
+```bash
+./start.sh  # 앱 실행
+```
+
 ## 구조
 ```
 affinity-app/
@@ -12,19 +27,35 @@ affinity-app/
 ```
 
 ## 로컬 실행
+
+### 🚀 간편 실행 (권장)
+```bash
+# 한 번에 백엔드와 프론트엔드 모두 실행
+./start.sh
+
+# 서버 종료
+./stop.sh
+```
+
+### 📋 실행 정보
+- **프론트엔드**: http://localhost:5173
+- **백엔드 API**: http://localhost:8000 (Swagger: /docs)
+- **WebSocket**: ws://localhost:8000/ws/board/{board_id}
+
+### 🔧 수동 실행 (개발용)
 ```bash
 # Backend
 cd backend
+python3 -m venv venv  # 가상환경 생성 (최초 1회)
+source venv/bin/activate
 pip install -r requirements.txt
-uvicorn app.main:app --reload
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
 # Frontend (새 터미널)
-cd ../frontend
+cd frontend
 npm install
-npm run dev
+npm run dev -- --host
 ```
-Backend: http://localhost:8000  (Swagger: /docs)
-Frontend: http://localhost:5173
-WebSocket: ws://localhost:8000/ws/board/dev-board
 
 ### 외부 IP / 같은 네트워크 접속
 개발 PC IP가 `192.168.x.x` 라면 다른 단말 브라우저에서:

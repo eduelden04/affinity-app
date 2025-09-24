@@ -15,6 +15,16 @@ app.add_middleware(
 
 app.include_router(boards.router, prefix="/api/boards", tags=["boards"])
 
+@app.get("/")
+async def root():
+    return {
+        "message": "Affinity Diagram API",
+        "version": "0.1.0",
+        "docs": "/docs",
+        "health": "/health",
+        "websocket": "/ws/board/{board_id}"
+    }
+
 @app.get("/health")
 async def health():
     return {"status": "ok"}
