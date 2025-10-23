@@ -13,7 +13,7 @@ var nameSuffix = enableRandomSuffix ? '-${suffix}' : ''
 @description('배포 위치')
 param location string = resourceGroup().location
 @description('컨테이너 이미지 (예: ghcr.io/asomi7007/affinity-app:latest) - 실제 배포 전 latest 이미지를 먼저 푸시해야 함')
-param containerImage string = 'ghcr.io/asomi7007/affinity-app:636bf75e61c8'
+param containerImage string = 'ghcr.io/asomi7007/affinity-app:latest'
 @description('컨테이너 타겟 포트 (FastAPI 기본값: 8000)')
 param targetPort int = 8000
 @description('외부 노출 여부 (external 또는 internal)')
