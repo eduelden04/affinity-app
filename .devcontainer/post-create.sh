@@ -6,13 +6,13 @@ echo "🚀 Setting up Affinity App development environment..."
 # Install Python dependencies
 echo "📦 Installing Python dependencies..."
 cd backend
-pip install -r requirements.txt
+pip install --no-cache-dir -r requirements.txt
 cd ..
 
 # Install Node.js dependencies
 echo "📦 Installing Node.js dependencies..."
 cd frontend
-npm install
+npm ci --prefer-offline
 cd ..
 
 # Create environment files from examples
@@ -27,7 +27,7 @@ fi
 
 # Set up pre-commit hooks (optional)
 echo "🔧 Setting up development tools..."
-pip install pre-commit 2>/dev/null || true
+pip install --no-cache-dir pre-commit 2>/dev/null || true
 pre-commit install 2>/dev/null || true
 
 echo "✅ Development environment setup complete!"

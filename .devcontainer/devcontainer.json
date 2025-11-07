@@ -1,14 +1,10 @@
 {
   "name": "Affinity App Development",
-  "image": "mcr.microsoft.com/devcontainers/universal:2",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12-bullseye",
   "features": {
     "ghcr.io/devcontainers/features/node:1": {
       "version": "18"
-    },
-    "ghcr.io/devcontainers/features/python:1": {
-      "version": "3.12"
-    },
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+    }
   },
   "postCreateCommand": "bash .devcontainer/post-create.sh",
   "forwardPorts": [3000, 5173, 8000],
